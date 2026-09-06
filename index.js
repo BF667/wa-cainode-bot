@@ -21,6 +21,8 @@ const qrcode = require("qrcode-terminal");
 const P = require("pino");
 
 const { CainodeManager } = require("./lib/cainode-client");
+const { FavoritesManager } = require("./lib/favorites");
+const stats = require("./lib/stats");
 const commands = require("./lib/commands");
 
 // ─── Load config (NO .env!) ─────────────────────────────────────
@@ -50,11 +52,15 @@ const ALLOWED_JIDS = (config.allowed_jids || [])
 
 const SESSION_DIR = path.join(__dirname, "auth");
 const SESSIONS_STATE = path.join(__dirname, "sessions.json");
+const FAVORITES_FILE = path.join(__dirname, "favorites.json");
 
 // ─── Init CAINode ──────────────────────────────────────────────
 const cainode = new CainodeManager();
 cainode.defaultCharacterId = DEFAULT_CHARACTER_ID || null;
 cainode.loadSessions(SESSIONS_STATE);
+
+// ─── Init Favorites ────────────────────────────────────────────
+const favorites = new FavoritesManager(FAVORITES_FILE);
 
 // ─── Helper kirim pesan ────────────────────────────────────────
 async function sendText(sock, jid, text) {
@@ -76,6 +82,9 @@ async function onMessageUpsert(sock, msg) {
   text = text.trim();
   if (!text.startsWith(BOT_PREFIX)) return; // hanya proses pesan yang diawali prefix
 
+  // Track stats: semua pesan masuk
+  stats.recordMessage();
+
   // Whitelist (kalau di-set)
   if (ALLOWED_JIDS.length > 0) {
     const lower = jid.toLowerCase();
@@ -86,6 +95,8 @@ async function onMessageUpsert(sock, msg) {
 
   const ctx = {
     cainode,
+    favorites,
+    stats,
     senderJid: jid,
     reply: async (t) => sendText(sock, jid, t),
     config,

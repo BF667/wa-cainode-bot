@@ -3,4 +3,5 @@ auth/
 config.js
 .env
 sessions.json
+favorites.json
 *.log
